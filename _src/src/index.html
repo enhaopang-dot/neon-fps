@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>霓虹雨夜 · NEON RAIN</title>
+<style>
+:root{
+  --cyan:#3fe0ff;
+  --pink:#ff2f8e;
+  --amber:#ffb02e;
+  --ink:#04060c;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--ink);}
+body{font-family:"Microsoft YaHei","PingFang SC",sans-serif;-webkit-font-smoothing:antialiased;user-select:none;}
+#scene{display:block;width:100%;height:100%;}
+
+/* ---------- HUD ---------- */
+#hud{position:fixed;inset:0;pointer-events:none;opacity:0;transition:opacity .6s ease;color:#dff6ff;
+     font-family:"Consolas","Courier New",monospace;letter-spacing:.04em;}
+#hud.on{opacity:1;}
+
+.hud-corner{position:absolute;padding:16px 22px;}
+.tl{top:0;left:0;}
+.tr{top:0;right:0;text-align:right;}
+.bl{bottom:0;left:0;}
+.br{bottom:0;right:0;text-align:right;}
+
+.label{font-size:10px;letter-spacing:.42em;color:rgba(120,200,230,.62);text-transform:uppercase;}
+.value{font-size:34px;font-weight:700;line-height:1.05;
+       text-shadow:0 0 14px rgba(63,224,255,.75),0 0 42px rgba(63,224,255,.35);}
+.value.amber{text-shadow:0 0 14px rgba(255,176,46,.8),0 0 42px rgba(255,176,46,.35);}
+.value.pink{text-shadow:0 0 14px rgba(255,47,142,.85),0 0 42px rgba(255,47,142,.4);}
+.sub{font-size:11px;color:rgba(150,215,240,.65);letter-spacing:.2em;margin-top:2px;}
+
+/* 连击 */
+#combo{position:absolute;left:50%;top:56%;transform:translate(-50%,0) scale(.6);opacity:0;
+       font-size:52px;font-weight:800;font-style:italic;color:#fff;
+       text-shadow:0 0 22px var(--pink),0 0 60px var(--pink);
+       transition:opacity .18s,transform .18s;}
+#combo.pop{opacity:1;transform:translate(-50%,0) scale(1);}
+
+/* 准星 */
+#cross{position:absolute;left:50%;top:50%;width:44px;height:44px;transform:translate(-50%,-50%);}
+#cross i{position:absolute;background:rgba(190,245,255,.9);box-shadow:0 0 6px var(--cyan);display:block;}
+#cross .c1,#cross .c2{width:2px;height:9px;left:21px;}
+#cross .c1{top:0;}   #cross .c2{bottom:0;}
+#cross .c3,#cross .c4{height:2px;width:9px;top:21px;}
+#cross .c3{left:0;}  #cross .c4{right:0;}
+#cross .dot{width:2px;height:2px;left:21px;top:21px;border-radius:50%;opacity:.85;}
+
+/* 血条 */
+#hpwrap{width:190px;height:5px;background:rgba(255,255,255,.12);margin-top:8px;
+        box-shadow:0 0 0 1px rgba(63,224,255,.18);}
+#hp{height:100%;width:100%;background:linear-gradient(90deg,#2ee6c8,#3fe0ff);
+    box-shadow:0 0 12px rgba(63,224,255,.9);transition:width .18s linear;}
+#hp.low{background:linear-gradient(90deg,#ff2f5e,#ff7340);box-shadow:0 0 12px rgba(255,47,94,.9);}
+
+/* 弹药 */
+#ammo .value{font-size:40px;}
+#ammo .small{font-size:18px;color:rgba(150,215,240,.55);}
+
+/* 命中标记 */
+#hitmark{position:absolute;left:50%;top:50%;width:30px;height:30px;transform:translate(-50%,-50%) rotate(45deg) scale(1.6);
+         opacity:0;transition:opacity .12s,transform .12s;}
+#hitmark.on{opacity:1;transform:translate(-50%,-50%) rotate(45deg) scale(1);}
+#hitmark i{position:absolute;background:#fff;box-shadow:0 0 8px #fff;}
+#hitmark i:nth-child(1){width:2px;height:10px;left:14px;top:0;}
+#hitmark i:nth-child(2){width:2px;height:10px;left:14px;bottom:0;}
+#hitmark i:nth-child(3){height:2px;width:10px;top:14px;left:0;}
+#hitmark i:nth-child(4){height:2px;width:10px;top:14px;right:0;}
+
+/* 受击红屏 */
+#dmg{position:fixed;inset:0;pointer-events:none;opacity:0;transition:opacity .35s;
+     background:radial-gradient(ellipse at center,rgba(255,0,60,0) 35%,rgba(255,10,60,.55) 100%);}
+
+/* ---------- 遮罩 ---------- */
+#overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+         background:radial-gradient(ellipse at 50% 40%,rgba(8,16,32,.34),rgba(2,3,7,.86) 78%);
+         backdrop-filter:blur(2px);transition:opacity .5s;z-index:20;}
+#overlay.hide{opacity:0;pointer-events:none;}
+
+.panel{width:min(760px,92vw);padding:44px 52px 40px;position:relative;
+       border:1px solid rgba(63,224,255,.22);
+       background:linear-gradient(180deg,rgba(10,20,36,.82),rgba(4,7,14,.9));
+       box-shadow:0 0 0 1px rgba(0,0,0,.6),0 0 60px rgba(63,224,255,.10),inset 0 0 80px rgba(63,224,255,.04);}
+.panel::before,.panel::after{content:"";position:absolute;width:26px;height:26px;border:2px solid var(--cyan);opacity:.8;}
+.panel::before{left:-2px;top:-2px;border-right:0;border-bottom:0;}
+.panel::after{right:-2px;bottom:-2px;border-left:0;border-top:0;}
+
+h1{font-size:clamp(30px,5vw,52px);line-height:1.02;font-weight:800;letter-spacing:.10em;
+   background:linear-gradient(92deg,#8ef4ff 0%,#3fe0ff 34%,#ff2f8e 82%);
+   -webkit-background-clip:text;background-clip:text;color:transparent;
+   filter:drop-shadow(0 0 24px rgba(63,224,255,.45));}
+h1 span{display:block;font-size:.34em;letter-spacing:.62em;color:rgba(150,215,240,.75);
+        -webkit-text-fill-color:rgba(150,215,240,.75);margin-top:10px;font-weight:400;}
+
+.rule{height:1px;background:linear-gradient(90deg,rgba(63,224,255,.7),rgba(255,47,142,.35),transparent);margin:26px 0 22px;}
+
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px 26px;font-size:13.5px;color:rgba(190,225,240,.8);}
+.k{display:inline-block;min-width:74px;padding:2px 8px;margin-right:8px;
+   border:1px solid rgba(63,224,255,.35);color:#9fe9ff;font-family:Consolas,monospace;
+   font-size:11.5px;letter-spacing:.1em;background:rgba(63,224,255,.06);}
+.brief{margin-top:20px;font-size:13.5px;line-height:1.95;color:rgba(175,212,232,.78);}
+.brief b{color:var(--amber);font-weight:600;}
+
+#startBtn,#startBtn2{margin-top:30px;width:100%;padding:16px;cursor:pointer;
+  font-family:Consolas,monospace;font-size:15px;letter-spacing:.4em;color:#04121a;font-weight:700;
+  background:linear-gradient(90deg,#5fe8ff,#3fe0ff 45%,#9bf0ff);border:0;
+  box-shadow:0 0 28px rgba(63,224,255,.5);transition:transform .12s,box-shadow .2s;}
+#startBtn:hover,#startBtn2:hover{transform:translateY(-1px);box-shadow:0 0 44px rgba(63,224,255,.85);}
+#startBtn:active,#startBtn2:active{transform:translateY(1px);}
+
+/* 结算 */
+#result{display:none;}
+#result.on{display:block;}
+.stat-row{display:flex;justify-content:space-between;align-items:baseline;
+  padding:11px 0;border-bottom:1px solid rgba(63,224,255,.12);font-size:14px;color:rgba(180,220,238,.8);}
+.stat-row b{font-family:Consolas,monospace;font-size:22px;color:#9fe9ff;letter-spacing:.02em;
+  text-shadow:0 0 16px rgba(63,224,255,.6);}
+#grade{font-size:110px;font-weight:800;font-style:italic;line-height:1;
+  text-align:center;margin:6px 0 18px;
+  background:linear-gradient(180deg,#fff,#3fe0ff);-webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 0 30px rgba(63,224,255,.65));}
+
+#loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+  background:#04060c;color:#3fe0ff;font-family:Consolas,monospace;letter-spacing:.5em;font-size:12px;z-index:50;
+  transition:opacity .5s;}
+#loading.hide{opacity:0;pointer-events:none;}
+</style>
+</head>
+<body>
+<canvas id="scene"></canvas>
+
+<div id="hud">
+  <div class="hud-corner tl">
+    <div class="label">SCORE</div>
+    <div class="value" id="score">0</div>
+    <div class="sub" id="acc">命中 0 / 0</div>
+  </div>
+  <div class="hud-corner tr">
+    <div class="label">TIME</div>
+    <div class="value amber" id="time">60</div>
+  </div>
+  <div class="hud-corner bl">
+    <div class="label">VITAL</div>
+    <div id="hpwrap"><div id="hp"></div></div>
+  </div>
+  <div class="hud-corner br" id="ammo">
+    <div class="label">MAG</div>
+    <div class="value pink"><span id="mag">30</span><span class="small"> / 30</span></div>
+  </div>
+
+  <div id="combo">×2</div>
+
+  <div id="cross">
+    <i class="c1"></i><i class="c2"></i><i class="c3"></i><i class="c4"></i><i class="dot"></i>
+  </div>
+  <div id="hitmark"><i></i><i></i><i></i><i></i></div>
+</div>
+<div id="dmg"></div>
+
+<div id="overlay">
+  <div class="panel" id="intro">
+    <h1>霓虹雨夜<span>NEON&nbsp;RAIN&nbsp;/&nbsp;CYBER&nbsp;SECTOR&nbsp;9</span></h1>
+    <div class="rule"></div>
+    <div class="grid2">
+      <div><span class="k">W A S D</span>移动</div>
+      <div><span class="k">SHIFT</span>冲刺</div>
+      <div><span class="k">空格</span>跳跃</div>
+      <div><span class="k">左键</span>射击</div>
+      <div><span class="k">R</span>换弹</div>
+      <div><span class="k">ESC</span>暂停</div>
+    </div>
+    <div class="brief">
+      60 秒清场。<b>霓虹靶</b>命中 +100，连击倍数最高 ×5；<b>敌对无人机</b>会向你开火，全部击落额外加分。<br>
+      被打空血量判定失败。撑着不死，把这片街区打干净。
+    </div>
+    <button id="startBtn">CLICK&nbsp;TO&nbsp;DEPLOY</button>
+  </div>
+
+  <div class="panel" id="result">
+    <div class="label" style="letter-spacing:.5em">MISSION&nbsp;REPORT</div>
+    <div id="grade">A</div>
+    <div class="stat-row"><span>最终得分</span><b id="rScore">0</b></div>
+    <div class="stat-row"><span>命中率</span><b id="rAcc">0%</b></div>
+    <div class="stat-row"><span>最高连击</span><b id="rCombo">0</b></div>
+    <div class="stat-row"><span>击落无人机</span><b id="rDrones">0 / 4</b></div>
+    <button id="startBtn2">REDEPLOY</button>
+  </div>
+</div>
+
+<div id="loading">INITIALIZING&nbsp;SECTOR</div>
+
+<script>/*__THREE__*/</script>
+<script>/*__GAME__*/</script>
+</body>
+</html>
